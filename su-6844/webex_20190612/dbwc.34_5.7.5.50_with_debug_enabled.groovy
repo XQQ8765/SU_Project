@@ -16,7 +16,34 @@ package system._dbwc.scripts;
 import com.quest.wcf.servicelayer.*;
 import org.apache.commons.logging.Log;
 
-log = org.apache.commons.logging.LogFactory.getLog("script." + functionHelper.getFunctionId());
+/**
+ * The function is "#Global View - get all node entities"(system:dbwc.34), the code version is:5.7.5.50.
+ * We have added some additional log here
+ * @param gvData - DBWC_GV_GlobalViewRoot
+ * @return 	DBWC_GV_GlobalViewRoot
+ */
+//log = org.apache.commons.logging.LogFactory.getLog("script." + functionHelper.getFunctionId());
+class EnableDebugLog4JLogger extends org.apache.commons.logging.impl.Log4JLogger {
+    EnableDebugLog4JLogger(name) {
+        super(name)
+    }
+
+    public boolean isDebugEnabled() {
+        return true
+    }
+    public void debug(String message) {//This method will enter if parameter type is "String" rather than "Object" in WCF groovy function
+        info("DEBUG: ${message}")
+    }
+
+    public boolean isTraceEnabled() {
+        return false
+    }
+    public void trace(String message) {
+        info("TRACE: ${message}")
+    }
+}
+log = new EnableDebugLog4JLogger("script.dbwc.34.su_6844_v1")
+DEBUG_ENABLED = log.isDebugEnabled()
 
 //################# Global Definition ######################//
 
@@ -49,11 +76,20 @@ def createEmptyGVData() {
  */
 def reloadGVDataAsync() {
     try {
+        if (DEBUG_ENABLED) {
+            log.debug("reloadGVDataAsync() - enter.")
+        }
         new Thread(new Runnable() {
             void run() {
                 def invokeFunctionTimeRange = null;
                 def invokeFunctionArg2 = null;
+                if (DEBUG_ENABLED) {
+                    log.debug("reloadGVDataAsync() - in Thread.run(): before invoke function \"system:dbwc.loadGVData\".")
+                }
                 def loadGVData = ServiceRegistry.getEvaluationService().invokeFunction("system:dbwc.loadGVData", [], invokeFunctionTimeRange, invokeFunctionArg2);
+                if (DEBUG_ENABLED) {
+                    log.debug("reloadGVDataAsync() - in Thread.run(): after invoke function \"system:dbwc.loadGVData\".")
+                }
             }
         }).start();
     } catch (Exception e) {
@@ -68,22 +104,39 @@ def reloadGVDataAsync() {
 def loadGVLastDataObject() {
     def objGVObs = #!FMS_GV_Data#.getTopologyObjects();
     def dbObservationTopology = objGVObs.size == 1 ? objGVObs.get(0) : null;
+    if (DEBUG_ENABLED) {
+        log.debug("loadGVLastDataObject() - dbObservationTopology:${dbObservationTopology}.")
+    }
 
     def gvData;
     if (dbObservationTopology != null) {
-        def lastGVValue = dataService.retrieveLastNValues(dbObservationTopology, "clustersGlobalViewObs", 1);
+        def lastGVValue = dataService.retrieveLastNValues(dbObservationTopology, "clustersGlobalViewObs", 1);//type: GV_Observed_Value
+        if (DEBUG_ENABLED) {
+            log.debug("loadGVLastDataObject() - lastGVValue?.size():${lastGVValue?.size()}.")
+        }
         if (lastGVValue.size() == 1) {
-            def DBWC_GV_GlobalViewDataObj = createEmptyGVData();
-            def lastClustersGlobalViewData = lastGVValue.get(0)
+            def DBWC_GV_GlobalViewDataObj = createEmptyGVData();//Type "DBWC_GV_GlobalViewRoot"
+            def lastClustersGlobalViewData = lastGVValue.get(0)//Type "DBWC_GV_GVClusterData"
+
+            if (DEBUG_ENABLED) {
+                log.debug("loadGVLastDataObject() - lastClustersGlobalViewData:${lastClustersGlobalViewData}.")
+            }
 
             //refresh the GV data in the following cases:
             //  1. Non federation FMS
             //  2. GV data updated less than specified interval in case the FMS is a federator (enable the customer still to have up to date while the user is on the screen)
             def gvDataLastUpdateTime = lastClustersGlobalViewData.getEndTime().getTime();
-            if (!gIsFederation || isGVDataNeedToBeUpdated(gvDataLastUpdateTime)) {
+            def needToBeUpdated = isGVDataNeedToBeUpdated(gvDataLastUpdateTime)
+            if (DEBUG_ENABLED) {
+                log.debug("reloadGVDataAsync() - gIsFederation:${gIsFederation}, gvDataLastUpdateTime:${gvDataLastUpdateTime}, needToBeUpdated:${needToBeUpdated}.")
+            }
+            if (!gIsFederation || needToBeUpdated) {
                 reloadGVDataAsync();
             }
 
+            if (DEBUG_ENABLED) {
+                log.debug("loadGVLastDataObject() - lastClustersGlobalViewData.getValue():${lastClustersGlobalViewData?.getValue()}.")
+            }
             DBWC_GV_GlobalViewDataObj.set("clustersGlobalView", lastClustersGlobalViewData.getValue());
             gvData = DBWC_GV_GlobalViewDataObj;
         } else {
@@ -103,13 +156,16 @@ def loadGVLastDataObject() {
 
     //apply user management filtering
     def returnResult = filterMonitoredInstancesForUser(gvData);
+    if (DEBUG_ENABLED) {
+        log.debug("loadGVLastDataObject() - returnResult:${returnResult}.")
+    }
     return returnResult;
 }
 
 /**
  * Filter global view monitored instances data for current user
  * @param gvData all global view monitored instance data
- * @return gvData filtered for current user
+ * @return gvData - DBWC_GV_GlobalViewRoot, filtered for current user
  */
 def filterMonitoredInstancesForUser(gvData) {
 
@@ -244,13 +300,18 @@ def getGroupEntityConfigurationMap() {
 }
 
 //################## Main Script Flow ##################//
-
+if (DEBUG_ENABLED) {
+    log.debug("dbwc.34() - enter.")
+}
 queryService = server.get("QueryService");
 
 userConfiguration = getEntityConfiguration(userName, "user");
 groupEcMap = getGroupEntityConfigurationMap();
 //return the global view data to the wcf view
-def result = loadGVLastDataObject();
+def result = loadGVLastDataObject();//result type is "DBWC_GV_GlobalViewRoot"
 //populate the gvData to be used for as context data structure such as the quick view
 gvData.set("clustersGlobalView", result.get("clustersGlobalView"));
-return result;
+if (DEBUG_ENABLED) {
+    log.debug("dbwc.34() - exit. result?.clustersGlobalView?.size():${result?.clustersGlobalView?.size()}.")
+}
+return result;//DBWC_GV_GlobalViewRoot
