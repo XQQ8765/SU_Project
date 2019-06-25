@@ -1,0 +1,9 @@
+<!DOCTYPE types SYSTEM "../dtd/topology-types.dtd">
+<types>
+    <type name="FMS_GV_Data" extends="TopologyObject">
+        <property name="name" type="String" is-identity="true"/>
+        <property name="clustersGlobalViewObs" type="GV_Observation" is-containment="true">
+            <annotation name="Federated" value="false"/>
+        </property>
+    </type>
+</types>
