@@ -117,23 +117,23 @@ def loadGVLastDataObject() {
         }
         if (lastGVValue.size() == 1) {
             def DBWC_GV_GlobalViewDataObj = createEmptyGVData();//Type "DBWC_GV_GlobalViewRoot"
-            def lastClustersGlobalViewData = lastGVValue.get(0)//Type "GV_Observed_Value"
+            def lastGVObservedValue = lastGVValue.get(0)//Type "GV_Observed_Value"
 
             if (DEBUG_ENABLED) {
-                log.debug("loadGVLastDataObject() - lastClustersGlobalViewData:${lastClustersGlobalViewData}.")
+                log.debug("loadGVLastDataObject() - lastGVObservedValue: ${GV_Observed_Value_ToString(lastGVObservedValue)}.")
             }
 
             //refresh the GV data in the following cases:
             //  1. Non federation FMS
             //  2. GV data updated less than specified interval in case the FMS is a federator (enable the customer still to have up to date while the user is on the screen)
-            def gvDataLastUpdateTime = lastClustersGlobalViewData.getEndTime().getTime();
+            def gvDataLastUpdateTime = lastGVObservedValue.getEndTime().getTime();
             def needToBeUpdatedByTime = isGVDataNeedToBeUpdatedByTime(gvDataLastUpdateTime)
             if (DEBUG_ENABLED) {
-                log.debug("reloadGVDataAsync() - gIsFederation:${gIsFederation}, endTime:${lastClustersGlobalViewData.getEndTime()}, gvDataLastUpdateTime:${gvDataLastUpdateTime}, needToBeUpdatedByTime:${needToBeUpdatedByTime}.")
+                log.debug("reloadGVDataAsync() - gIsFederation:${gIsFederation}, endTime:${lastGVObservedValue.getEndTime()}, gvDataLastUpdateTime:${gvDataLastUpdateTime}, needToBeUpdatedByTime:${needToBeUpdatedByTime}.")
             }
             def needToReloadGVAsync = !gIsFederation || needToBeUpdatedByTime
             if (!needToReloadGVAsync) {
-                needToReloadGVAsync = needToReloadGVInstancesOrNot(lastClustersGlobalViewData)
+                needToReloadGVAsync = needToReloadGVInstancesOrNot(lastGVObservedValue)
             }
             if (DEBUG_ENABLED) {
                 log.debug("reloadGVDataAsync() - needToReloadGVAsync:${needToReloadGVAsync}.")
@@ -143,9 +143,9 @@ def loadGVLastDataObject() {
             }
 
             if (DEBUG_ENABLED) {
-                log.debug("loadGVLastDataObject() - lastClustersGlobalViewData.getValue():${lastClustersGlobalViewData?.getValue()}.")
+                log.debug("loadGVLastDataObject() - lastGVObservedValue.getValue():${lastGVObservedValue?.getValue()}.")
             }
-            DBWC_GV_GlobalViewDataObj.set("clustersGlobalView", lastClustersGlobalViewData.getValue());
+            DBWC_GV_GlobalViewDataObj.set("clustersGlobalView", lastGVObservedValue.getValue());
             gvData = DBWC_GV_GlobalViewDataObj;
         } else {
             log.info("Unable to retrieve global view data from the topology, building GV data structure on demand");
@@ -267,6 +267,8 @@ def needToReloadGVInstancesOrNot(lastGVObservedValue) {//Type "GV_Observed_Value
     def clusterDatas = lastGVObservedValue?.getValue()//"clusterDatas" type is "List<DBWC_GV_GVClusterData>"
     if (clusterDatas == null || clusterDatas.size() == 0) {
         clusterDatasInGVIsEmpty = true
+    } else {
+        return false
     }
     def agents = #!Agent#.getTopologyObjects()
     def dbAgentExists = agents?.any { agent ->
@@ -281,6 +283,22 @@ def needToReloadGVInstancesOrNot(lastGVObservedValue) {//Type "GV_Observed_Value
 
 def isGVDataNeedToBeUpdatedByTime(gvDataLastUpdateTime) {
     return (System.currentTimeMillis() - gvDataLastUpdateTime) / 1000 > refershIntervalWhileUserOnScreenInSec;
+}
+
+def GV_Observed_Value_ToString(gvObservedValue) {//type: GV_Observed_Value
+    if (gvObservedValue == null) {
+        return "GV_Observed_Value(null)"
+    }
+    def sb = new StringBuilder()
+    sb << "GV_Observed_Value (\n"
+    sb << "  startTime: ${gvObservedValue.getStartTime()}\n"
+    sb << "  endTime: ${gvObservedValue.getEndTime()}\n"
+    sb << "  sampledPeriod(): ${gvObservedValue.getSampledPeriod()}\n"
+    sb << "  period start to end: ${gvObservedValue.getPeriodStart()} - ${gvObservedValue.getPeriodEnd()}\n"
+    def gvClusterDatas = gvObservedValue.getValue()//"gvClusterDatas" type is "List<DBWC_GV_GVClusterData>"
+    sb << " gvClusterDatas?.size():${gvClusterDatas?.size()}\n"
+    sb << ")"
+    return sb.toString()
 }
 
 def getUserGroupNames(userName) {
