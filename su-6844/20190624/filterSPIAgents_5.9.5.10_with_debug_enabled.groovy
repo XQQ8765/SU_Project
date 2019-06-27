@@ -41,7 +41,7 @@ class EnableDebugLog4JLogger extends org.apache.commons.logging.impl.Log4JLogger
         info("TRACE: ${message}")
     }
 }
-CAT = new EnableDebugLog4JLogger("script.dbwc_globalview_spiglobalview.filterSPIAgents.su_6844")
+CAT = new EnableDebugLog4JLogger("script.dbwc_globalview_spiglobalview.filterSPIAgents.su_6844_v2")
 //CAT = com.quest.qsi.fason.framework.fmslogger.LogFactory.getLogForWCF(functionHelper.getFunctionId())
 DEBUG_ENABLED = CAT.isDebugEnabled()
 
